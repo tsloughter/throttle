@@ -1,6 +1,6 @@
 {application, throttle,
- [{description, "An OTP library"},
-  {vsn, "0.1.0"},
+ [{description, "Library for checking if a process is overloaded"},
+  {vsn, git},
   {registered, []},
   {applications,
    [kernel,

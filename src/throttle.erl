@@ -14,6 +14,7 @@ init(Name, Hwm, Window) when Hwm > 0, Window > 0 ->
     %% keeping the hwm in an atomic lets us reconfigure
     %% without changing the persistent term
     A = atomics:new(3, []),
+    atomics:put(A, 1, 0),
     atomics:put(A, 2, Hwm),
     atomics:put(A, 3, Hwm - Window),
     persistent_term:put(?KEY(Name), A),
@@ -26,19 +27,22 @@ reconfigure(Name, Hwm, Window) when Hwm > 0, Window > 0 ->
     atomics:put(A, 3, Hwm - Window),
     ok.
 
--spec check(term()) -> ok | integer().
+%% Does the message queue check and returns the new value as a boolean
+-spec check(term()) -> boolean().
 check(Name) ->
     A = persistent_term:get(?KEY(Name)),
+    Current = atomics:get(A, 1),
     Hwm = atomics:get(A, 2),
     WindowMin = atomics:get(A, 3),
-    case erlang:process_info(self(), message_queue_len) of
-        {message_queue_len, Len} when Len > Hwm ->
-            %% probably better to just do a put?
-            atomics:compare_exchange(A, 1, 0, 1);
-        {message_queue_len, Len} when Len < WindowMin ->
-            atomics:compare_exchange(A, 1, 1, 0);
-        _ ->
-            ok
+    case {Current, erlang:process_info(self(), message_queue_len)} of
+        {0, {message_queue_len, Len}} when Len > Hwm ->
+            atomics:exchange(A, 1, 1),
+            true;
+        {1, {message_queue_len, Len}} when Len < WindowMin ->
+            atomics:exchange(A, 1, 0),
+            false;
+        {Current, _} ->
+            Current
     end.
 
 -spec is_throttled(term()) -> boolean().
