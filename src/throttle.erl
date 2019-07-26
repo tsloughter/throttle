@@ -2,7 +2,7 @@
 
 -export([init/3,
          reconfigure/3,
-         check/1,
+         self_check/1,
          is_throttled/1,
          throttle/1,
          erase/1]).
@@ -28,8 +28,8 @@ reconfigure(Name, Hwm, Window) when Hwm > 0, Window > 0 ->
     ok.
 
 %% Does the message queue check and returns the new value as a boolean
--spec check(term()) -> boolean().
-check(Name) ->
+-spec self_check(term()) -> boolean().
+self_check(Name) ->
     A = persistent_term:get(?KEY(Name)),
     Current = atomics:get(A, 1),
     Hwm = atomics:get(A, 2),
